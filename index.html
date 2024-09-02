@@ -69,18 +69,15 @@
       };
 
       function displayMessage(type, text) {
+        console.log({ type, text });
         if (!nullValues.includes(text) && !nullValues.includes(text?.trim())) {
           const div = document.createElement("div");
-          div.innerHTML = `<strong>${type}: </strong>${messagesToDisplay.join(
-            " "
-          )}`;
+          div.innerHTML = `<strong>${type}: </strong>${text}`;
           document.getElementById("chat-container").appendChild(div);
 
           // Scroll to bottom
           document.getElementById("chat-container").scrollTop =
             document.getElementById("chat-container").scrollHeight;
-          messagesToDisplay = [];
-          lastMessageFrom = "";
         }
       }
 
@@ -91,29 +88,21 @@
           lastMessageFrom,
           messagesToDisplay,
         });
-        let timeout = null;
         if (lastMessageFrom === "") {
           lastMessageFrom = type;
-          messagesToDisplay.push(text);
-          timeout = setTimeout(() => {
-            displayMessage(type, text);
-          }, 1000);
+          displayMessage(type, text);
         } else {
           if (lastMessageFrom === type) {
             messagesToDisplay.push(text);
-            if (timeout) {
-              clearTimeout(timeout);
-            }
-            timeout = setTimeout(() => {
+            if (messagesToDisplay.length > 5) {
               displayMessage(type, messagesToDisplay.join(" "));
-            }, 1000);
-          } else {
-            if (timeout) {
-              clearTimeout(timeout);
+              lastMessageFrom = type;
+              messagesToDisplay = [];
             }
-            displayMessage(type, messagesToDisplay.join(" "));
+          } else {
+            displayMessage(lastMessageFrom, messagesToDisplay.join(" "));
             lastMessageFrom = type;
-            messagesToDisplay = [text];
+            messagesToDisplay = [];
           }
         }
       }
