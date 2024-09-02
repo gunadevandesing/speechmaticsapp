@@ -32,6 +32,7 @@
     </select>
     <button id="startButton">Start</button>
     <button id="stopButton" disabled>Stop</button>
+    <button id="resetButton">Reset</button>
 
     <div class="conversation-container" id="chat-container"></div>
 
@@ -47,6 +48,8 @@
       let jwt = "";
       let conversationLanguage = "en";
       const nullValues = ["", null, undefined];
+      let messagesToDisplay = [];
+      let lastMessageFrom = "";
 
       let message = {
         message: "StartRecognition",
@@ -63,6 +66,60 @@
         // translation_config: {
         //   target_languages: ["en"],
         // },
+      };
+
+      function displayMessage(type, text) {
+        if (!nullValues.includes(text) && !nullValues.includes(text?.trim())) {
+          const div = document.createElement("div");
+          div.innerHTML = `<strong>${type}: </strong>${messagesToDisplay.join(
+            " "
+          )}`;
+          document.getElementById("chat-container").appendChild(div);
+
+          // Scroll to bottom
+          document.getElementById("chat-container").scrollTop =
+            document.getElementById("chat-container").scrollHeight;
+          messagesToDisplay = [];
+          lastMessageFrom = "";
+        }
+      }
+
+      function handleMessage(type, text) {
+        console.log({
+          type,
+          text,
+          lastMessageFrom,
+          messagesToDisplay,
+        });
+        let timeout = null;
+        if (lastMessageFrom === "") {
+          lastMessageFrom = type;
+          messagesToDisplay.push(text);
+          timeout = setTimeout(() => {
+            displayMessage(type, text);
+          }, 1000);
+        } else {
+          if (lastMessageFrom === type) {
+            messagesToDisplay.push(text);
+            if (timeout) {
+              clearTimeout(timeout);
+            }
+            timeout = setTimeout(() => {
+              displayMessage(type, messagesToDisplay.join(" "));
+            }, 1000);
+          } else {
+            if (timeout) {
+              clearTimeout(timeout);
+            }
+            displayMessage(type, messagesToDisplay.join(" "));
+            lastMessageFrom = type;
+            messagesToDisplay = [text];
+          }
+        }
+      }
+
+      document.getElementById("resetButton").onclick = function () {
+        document.getElementById("chat-container").innerHTML = "";
       };
 
       document.getElementById("language").onchange = function (event) {
@@ -141,14 +198,9 @@
               conversationLanguage === "en" &&
               data.message === "AddTranscript"
             ) {
-              if (!nullValues.includes(data.metadata.transcript)) {
-                const div = document.createElement("div");
-                div.innerHTML = `<strong>User: </strong>${data.metadata.transcript}`;
-                document.getElementById("chat-container").appendChild(div);
-
-                // Scroll to bottom
-                document.getElementById("chat-container").scrollTop =
-                  document.getElementById("chat-container").scrollHeight;
+              const conversationText = data.metadata.transcript;
+              if (!nullValues.includes(conversationText)) {
+                handleMessage("User", conversationText);
               }
             }
 
@@ -157,15 +209,9 @@
               conversationLanguage !== "en" &&
               data.message === "AddTranslation"
             ) {
-              const translation = data?.results[0]?.content;
-              if (!nullValues.includes(translation)) {
-                const div = document.createElement("div");
-                div.innerHTML = `<strong>User: </strong>${translation}`;
-                document.getElementById("chat-container").appendChild(div);
-
-                // Scroll to bottom
-                document.getElementById("chat-container").scrollTop =
-                  document.getElementById("chat-container").scrollHeight;
+              const conversationText = data?.results[0]?.content;
+              if (!nullValues.includes(conversationText)) {
+                handleMessage("User", conversationText);
               }
             }
 
@@ -183,12 +229,10 @@
             if (MediaRecorder.isTypeSupported("audio/webm")) {
               var options = {
                 mimeType: "audio/webm",
-                audioBitsPerSecond: 16000,
               };
             } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
               var options = {
                 mimeType: "audio/mp4",
-                audioBitsPerSecond: 16000,
               };
             } else {
               console.error("no suitable mimetype found for this device");
@@ -219,14 +263,9 @@
               conversationLanguage === "en" &&
               data.message === "AddTranscript"
             ) {
-              if (!nullValues.includes(data.metadata.transcript)) {
-                const div = document.createElement("div");
-                div.innerHTML = `<strong>Agent: </strong>${data.metadata.transcript}`;
-                document.getElementById("chat-container").appendChild(div);
-
-                // Scroll to bottom
-                document.getElementById("chat-container").scrollTop =
-                  document.getElementById("chat-container").scrollHeight;
+              const conversationText = data.metadata.transcript;
+              if (!nullValues.includes(conversationText)) {
+                handleMessage("Agent", conversationText);
               }
             }
 
@@ -235,15 +274,9 @@
               conversationLanguage !== "en" &&
               data.message === "AddTranslation"
             ) {
-              const translation = data?.results[0]?.content;
-              if (!nullValues.includes(translation)) {
-                const div = document.createElement("div");
-                div.innerHTML = `<strong>Agent: </strong>${translation}`;
-                document.getElementById("chat-container").appendChild(div);
-
-                // Scroll to bottom
-                document.getElementById("chat-container").scrollTop =
-                  document.getElementById("chat-container").scrollHeight;
+              const conversationText = data?.results[0]?.content;
+              if (!nullValues.includes(conversationText)) {
+                handleMessage("Agent", conversationText);
               }
             }
 
