@@ -37,19 +37,20 @@
     <div class="conversation-container" id="chat-container"></div>
 
     <script>
-      const bearerToken = "HCNK7DwrVMPMlxucp16hz0tG4kAwZTOM";
+      const bearerToken = "v1gjom2aTdBYXCISSZEHMSrKkc9JVQYg";
       let url = "wss://eu2.rt.speechmatics.com/v2?jwt=";
+      const nullValues = ["", null, undefined];
+
+      let jwt = "";
       let session;
       let session2;
       let mediaRecorder;
       let mediaRecorder2;
       let seq = 0;
       let seq2 = 0;
-      let jwt = "";
-      let conversationLanguage = "en";
-      const nullValues = ["", null, undefined];
-      let messagesToDisplay = [];
       let lastMessageFrom = "";
+      let userLastChatBubbleId = 0;
+      let agentLastChatBubbleId = 0;
 
       let message = {
         message: "StartRecognition",
@@ -60,49 +61,48 @@
           language: "en",
           diarization: "speaker",
           operating_point: "enhanced",
-          enable_partials: true,
+          // enable_partials: true,
           max_delay: 1,
         },
-        // translation_config: {
-        //   target_languages: ["en"],
-        // },
       };
 
-      function displayMessage(type, text) {
-        console.log({ type, text });
+      async function displayMessage(type, text, bubbleId) {
         if (!nullValues.includes(text) && !nullValues.includes(text?.trim())) {
-          const div = document.createElement("div");
-          div.innerHTML = `<strong>${type}: </strong>${text}`;
-          document.getElementById("chat-container").appendChild(div);
+          const bubbleSpan = document.getElementById(
+            `${type}-bubble-${bubbleId}`
+          );
+          if (!bubbleSpan) {
+            const div = document.createElement("div");
+            div.innerHTML = `<strong>${type}: </strong><span id = "${type}-bubble-${bubbleId}">${text}</span>`;
+            document.getElementById("chat-container").appendChild(div);
 
-          // Scroll to bottom
-          document.getElementById("chat-container").scrollTop =
-            document.getElementById("chat-container").scrollHeight;
+            // Scroll to bottom
+            document.getElementById("chat-container").scrollTop =
+              document.getElementById("chat-container").scrollHeight;
+          } else {
+            bubbleSpan.textContent += text;
+          }
         }
       }
 
-      function handleMessage(type, text) {
-        console.log({
-          type,
-          text,
-          lastMessageFrom,
-          messagesToDisplay,
-        });
+      async function handleMessage(type, text) {
+        let chatBubbleId =
+          type === "User" ? userLastChatBubbleId : agentLastChatBubbleId;
+
         if (lastMessageFrom === "") {
           lastMessageFrom = type;
-          displayMessage(type, text);
+          await displayMessage(type, text, chatBubbleId);
         } else {
           if (lastMessageFrom === type) {
-            messagesToDisplay.push(text);
-            if (messagesToDisplay.length > 5) {
-              displayMessage(type, messagesToDisplay.join(" "));
-              lastMessageFrom = type;
-              messagesToDisplay = [];
-            }
+            await displayMessage(type, text, chatBubbleId);
           } else {
-            displayMessage(lastMessageFrom, messagesToDisplay.join(" "));
             lastMessageFrom = type;
-            messagesToDisplay = [];
+            await displayMessage(type, text, chatBubbleId);
+            if (type === "User") {
+              agentLastChatBubbleId++;
+            } else {
+              userLastChatBubbleId++;
+            }
           }
         }
       }
@@ -114,15 +114,6 @@
       document.getElementById("language").onchange = function (event) {
         const language = event.target.value;
         message.transcription_config.language = language;
-        conversationLanguage = language;
-        if (language === "hi") {
-          message.translation_config = {
-            target_languages: ["en"],
-            enable_partials: true,
-          };
-        } else {
-          delete message.translation_config;
-        }
       };
 
       document.getElementById("setToken").onclick = async function () {
@@ -182,23 +173,8 @@
             if (data && data.message === "AudioAdded") {
               seq = data.seq_no;
             }
-            if (
-              data &&
-              conversationLanguage === "en" &&
-              data.message === "AddTranscript"
-            ) {
+            if (data && data.message === "AddTranscript") {
               const conversationText = data.metadata.transcript;
-              if (!nullValues.includes(conversationText)) {
-                handleMessage("User", conversationText);
-              }
-            }
-
-            if (
-              data &&
-              conversationLanguage !== "en" &&
-              data.message === "AddTranslation"
-            ) {
-              const conversationText = data?.results[0]?.content;
               if (!nullValues.includes(conversationText)) {
                 handleMessage("User", conversationText);
               }
@@ -247,23 +223,8 @@
               seq2 = data.seq_no;
             }
 
-            if (
-              data &&
-              conversationLanguage === "en" &&
-              data.message === "AddTranscript"
-            ) {
+            if (data && data.message === "AddTranscript") {
               const conversationText = data.metadata.transcript;
-              if (!nullValues.includes(conversationText)) {
-                handleMessage("Agent", conversationText);
-              }
-            }
-
-            if (
-              data &&
-              conversationLanguage !== "en" &&
-              data.message === "AddTranslation"
-            ) {
-              const conversationText = data?.results[0]?.content;
               if (!nullValues.includes(conversationText)) {
                 handleMessage("Agent", conversationText);
               }
