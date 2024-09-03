@@ -239,10 +239,13 @@
         document.getElementById("stopButton").onclick = function () {
           if (mediaRecorder) {
             mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach((track) => track.stop());
           }
           if (mediaRecorder2) {
             mediaRecorder2.stop();
+            mediaRecorder2.stream.getTracks().forEach((track) => track.stop());
           }
+
           if (session) {
             const message = {
               message: "EndOfStream",
