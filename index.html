@@ -91,13 +91,13 @@
 
         if (lastMessageFrom === "") {
           lastMessageFrom = type;
-          await displayMessage(type, text, chatBubbleId);
+          displayMessage(type, text, chatBubbleId);
         } else {
           if (lastMessageFrom === type) {
-            await displayMessage(type, text, chatBubbleId);
+            displayMessage(type, text, chatBubbleId);
           } else {
+            displayMessage(type, text, chatBubbleId);
             lastMessageFrom = type;
-            await displayMessage(type, text, chatBubbleId);
             if (type === "User") {
               agentLastChatBubbleId++;
             } else {
@@ -141,17 +141,17 @@
           document.getElementById("language").disabled = true;
 
           session = new WebSocket(url + jwt);
-          session2 = new WebSocket(url + jwt);
 
           session.onopen = async () => {
             session.send(JSON.stringify(message));
             try {
-              const stream = await navigator.mediaDevices.getDisplayMedia({
-                //video: true,
-                audio: true,
-              });
+              const screenStream = await navigator.mediaDevices.getDisplayMedia(
+                {
+                  audio: true,
+                }
+              );
 
-              mediaRecorder = new MediaRecorder(stream);
+              mediaRecorder = new MediaRecorder(screenStream);
 
               mediaRecorder.start(1000);
 
@@ -175,7 +175,10 @@
             }
             if (data && data.message === "AddTranscript") {
               const conversationText = data.metadata.transcript;
-              if (!nullValues.includes(conversationText)) {
+              if (
+                !nullValues.includes(conversationText) &&
+                !["", "."].includes(conversationText.trim())
+              ) {
                 handleMessage("User", conversationText);
               }
             }
@@ -185,26 +188,27 @@
             }
           };
 
+          session2 = new WebSocket(url + jwt);
           session2.onopen = async () => {
             session2.send(JSON.stringify(message));
-            let stream = await navigator.mediaDevices.getUserMedia({
+            let micStream = await navigator.mediaDevices.getUserMedia({
               audio: true,
             });
 
+            let options = {};
             if (MediaRecorder.isTypeSupported("audio/webm")) {
-              var options = {
+              options = {
                 mimeType: "audio/webm",
               };
             } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-              var options = {
+              options = {
                 mimeType: "audio/mp4",
               };
             } else {
               console.error("no suitable mimetype found for this device");
             }
 
-            mediaRecorder2 = new MediaRecorder(stream, options);
-
+            mediaRecorder2 = new MediaRecorder(micStream, options);
             mediaRecorder2.start(1000);
 
             mediaRecorder2.ondataavailable = async (event) => {
@@ -225,7 +229,10 @@
 
             if (data && data.message === "AddTranscript") {
               const conversationText = data.metadata.transcript;
-              if (!nullValues.includes(conversationText)) {
+              if (
+                !nullValues.includes(conversationText) &&
+                !["", "."].includes(conversationText.trim())
+              ) {
                 handleMessage("Agent", conversationText);
               }
             }
