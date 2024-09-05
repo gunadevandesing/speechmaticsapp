@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JS Example</title>
     <style>
+      .action-buttons {
+        display: flex;
+        margin: 10px;
+        gap: 10px;
+      }
       .conversation-container {
         display: flex;
         flex-direction: column;
@@ -25,22 +30,25 @@
   </head>
   <body>
     <h1>Screen Audio and Microphone Audio</h1>
-    <button id="setToken">Fetch Token</button>
-    <select id="language">
-      <option value="en" selected>English</option>
-      <option value="hi">Hindi</option>
-    </select>
-    <button id="startButton">Start</button>
-    <button id="stopButton" disabled>Stop</button>
-    <button id="resetButton">Reset</button>
+    <div class="action-buttons">
+      <button id="setToken">Fetch Token</button>
+      <select id="language">
+        <option value="en" selected>English</option>
+        <option value="hi">Hindi</option>
+      </select>
+      <button id="startButton">Start</button>
+      <button id="stopButton" disabled>Stop</button>
+      <button id="resetButton">Reset</button>
+    </div>
 
     <div class="conversation-container" id="chat-container"></div>
 
     <script>
-      const bearerToken = "v1gjom2aTdBYXCISSZEHMSrKkc9JVQYg";
+      const bearerToken = "LPDehf0IKXH1EzQhV6Io6B8bfs68VzmQ";
       let url = "wss://eu2.rt.speechmatics.com/v2?jwt=";
       const nullValues = ["", null, undefined];
 
+      let speakerSource;
       let jwt = "";
       let session;
       let session2;
@@ -75,13 +83,12 @@
             const div = document.createElement("div");
             div.innerHTML = `<strong>${type}: </strong><span id = "${type}-bubble-${bubbleId}">${text}</span>`;
             document.getElementById("chat-container").appendChild(div);
-
-            // Scroll to bottom
-            document.getElementById("chat-container").scrollTop =
-              document.getElementById("chat-container").scrollHeight;
           } else {
             bubbleSpan.textContent += text;
           }
+          // Scroll to bottom
+          document.getElementById("chat-container").scrollTop =
+            document.getElementById("chat-container").scrollHeight;
         }
       }
 
@@ -151,16 +158,23 @@
                 }
               );
 
-              mediaRecorder = new MediaRecorder(screenStream);
+              let speakerAudioContext = new AudioContext();
+              let speakerDestination =
+                speakerAudioContext.createMediaStreamDestination();
+
+              speakerSource =
+                speakerAudioContext.createMediaStreamSource(screenStream);
+              speakerSource.connect(speakerDestination);
+
+              mediaRecorder = new MediaRecorder(speakerDestination.stream, {
+                mimeType: "audio/webm",
+              });
 
               mediaRecorder.start(1000);
 
               mediaRecorder.ondataavailable = async (event) => {
                 if (event.data.size > 0) {
-                  const arrayBuffer = await event.data.arrayBuffer();
-
-                  // Instead of trying to decode or convert in the browser, send the raw Opus data
-                  session.send(arrayBuffer);
+                  session.send(event.data);
                 }
               };
             } catch (err) {
@@ -213,9 +227,7 @@
 
             mediaRecorder2.ondataavailable = async (event) => {
               if (event.data.size > 0) {
-                const arrayBuffer = await event.data.arrayBuffer();
-
-                session2.send(arrayBuffer);
+                session2.send(event.data);
               }
             };
           };
@@ -247,10 +259,18 @@
           if (mediaRecorder) {
             mediaRecorder.stop();
             mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+            mediaRecorder = null;
+
+            speakerSource?.disconnect();
+            speakerSource?.mediaStream
+              ?.getTracks()
+              ?.forEach((track) => track?.stop());
+            speakerSource = null;
           }
           if (mediaRecorder2) {
             mediaRecorder2.stop();
             mediaRecorder2.stream.getTracks().forEach((track) => track.stop());
+            mediaRecorder2 = null;
           }
 
           if (session) {
