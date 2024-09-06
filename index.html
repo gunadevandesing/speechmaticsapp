@@ -49,6 +49,7 @@
       const nullValues = ["", null, undefined];
 
       let speakerSource;
+      let microphoneSource;
       let jwt = "";
       let session;
       let session2;
@@ -67,14 +68,14 @@
         },
         transcription_config: {
           language: "en",
-          diarization: "none",
+          diarization: "speaker",
           operating_point: "enhanced",
           // enable_partials: true,
           max_delay: 1,
         },
       };
 
-      async function displayMessage(type, text, bubbleId) {
+      function displayMessage(type, text, bubbleId) {
         if (!nullValues.includes(text) && !nullValues.includes(text?.trim())) {
           const bubbleSpan = document.getElementById(
             `${type}-bubble-${bubbleId}`
@@ -92,7 +93,7 @@
         }
       }
 
-      async function handleMessage(type, text) {
+      function handleMessage(type, text) {
         let chatBubbleId =
           type === "User" ? userLastChatBubbleId : agentLastChatBubbleId;
 
@@ -222,6 +223,13 @@
               console.error("no suitable mimetype found for this device");
             }
 
+            let micAudioContext = new AudioContext();
+            let micDestination = micAudioContext.createMediaStreamDestination();
+
+            microphoneSource =
+              micAudioContext.createMediaStreamSource(micStream);
+            microphoneSource.connect(micDestination);
+
             mediaRecorder2 = new MediaRecorder(micStream, options);
             mediaRecorder2.start(1000);
 
@@ -271,6 +279,12 @@
             mediaRecorder2.stop();
             mediaRecorder2.stream.getTracks().forEach((track) => track.stop());
             mediaRecorder2 = null;
+
+            microphoneSource?.disconnect();
+            microphoneSource?.mediaStream
+              ?.getTracks()
+              ?.forEach((track) => track?.stop());
+            microphoneSource = null;
           }
 
           if (session) {
